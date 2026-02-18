@@ -1,0 +1,187 @@
+
+import 'package:evac_tracker/flutter_flow/flutter_flow_util.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../models/flat_api_response_model_permanenet_contractor.dart';
+import '/flutter_flow/custom_functions.dart' as functions;
+
+import '../../app_state.dart';
+import '../../backend/api_requests/api_calls.dart';
+import '../../flutter_flow/flutter_flow_theme.dart';
+import '../../models/flat_api_response_model.dart';
+
+
+
+class EvacuationDiagramProvider extends ChangeNotifier {
+  bool _isLoading = false;
+  List<ResultResident> _addressesResident = [];
+  List<PermanentContractorResult> _addressesPermContractor = [];
+
+  bool get isLoading => _isLoading;
+  List<ResultResident> get addressesResident => _addressesResident;
+  List<PermanentContractorResult> get addressesPermContractor =>
+      _addressesPermContractor;
+
+  Future<void> fetchAddressesResident(int userId, String authToken) async {
+    _setLoading(true);
+
+    try {
+      final response =
+          await EvacProjAfterLoginGroup.getAddressesByUserTypeCall.call(
+        user: userId,
+        userType: 'Resident',
+        authToken: authToken,
+      );
+
+      if (response.succeeded) {
+        FlatApiResponseModel flatApiResponseModel =
+            FlatApiResponseModel.fromJson(response.jsonBody);
+        _addressesResident = flatApiResponseModel.results;
+            } else {
+        // Handle API error here
+      }
+    } catch (error) {
+      // Handle the error
+    }
+
+    _setLoading(false);
+  }
+
+  Future<void> fetchAddressesPermContractor(
+      int userId, String authToken) async {
+    _setLoading(true);
+
+    try {
+      final response =
+          await EvacProjAfterLoginGroup.getAddressesByUserTypeCall.call(
+        user: userId,
+        userType: 'Permanent Contractor',
+        authToken: authToken,
+      );
+
+      if (response.succeeded) {
+        FlatApiResponsePermanentContractorModel flatApiResponseModel =
+            FlatApiResponsePermanentContractorModel.fromJson(response.jsonBody);
+        _addressesPermContractor = flatApiResponseModel.results;
+            } else {
+        // Handle API error here
+      }
+    } catch (error) {
+      // Handle the error
+    }
+
+    _setLoading(false);
+  }
+
+  Future<void> getEvacuationDiagramResident(
+      ResultResident result, BuildContext context) async {
+    _setResultLoading(result, true);
+
+    try {
+      final apiResult = await EvacProjAfterLoginGroup.evacDiagramByIDCall.call(
+        floor: result.floor,
+        authToken: FFAppState().userAuthentication.authorization,
+      );
+
+      if (apiResult.succeeded) {
+        final imagePath = EvacProjAfterLoginGroup.evacDiagramByIDCall
+            .evacDiagramPath(apiResult.jsonBody);
+        if (imagePath != null && imagePath.isNotEmpty) {
+          context.pushNamed(
+            'evacuationDiagram',
+            queryParameters: {
+              'imageLocation': imagePath,
+              'address': functions.generateAddress(
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .siteName(apiResult.jsonBody),
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .buildingName(apiResult.jsonBody),
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .floorName(apiResult.jsonBody),
+              ),
+            }.withoutNulls,
+          );
+        } else {
+          _showErrorSnackBar(context, 'Evacuation diagram not found.');
+        }
+      } else {
+        _showErrorSnackBar(context, 'Evacuation diagram not found.');
+      }
+    } finally {
+      _setResultLoading(result, false);
+    }
+  }
+
+  Future<void> getEvacuationDiagramPermanent(
+      PermanentContractorResult result, BuildContext context) async {
+    _setContractorLoading(result, true);
+
+    try {
+      final apiResult = await EvacProjAfterLoginGroup.evacDiagramByIDCall.call(
+        floor: result.floor,
+        authToken: FFAppState().userAuthentication.authorization,
+      );
+
+      if (apiResult.succeeded) {
+        final imagePath = EvacProjAfterLoginGroup.evacDiagramByIDCall
+            .evacDiagramPath(apiResult.jsonBody);
+        if (imagePath != null && imagePath.isNotEmpty) {
+          context.pushNamed(
+            'evacuationDiagram',
+            queryParameters: {
+              'imageLocation': imagePath,
+              'address': functions.generateAddress(
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .siteName(apiResult.jsonBody),
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .buildingName(apiResult.jsonBody),
+                EvacProjAfterLoginGroup.evacDiagramByIDCall
+                    .floorName(apiResult.jsonBody),
+              ),
+            }.withoutNulls,
+          );
+        } else {
+          _showErrorSnackBar(context, 'Evacuation diagram not found.');
+        }
+      } else {
+        _showErrorSnackBar(context, 'Evacuation diagram not found.');
+      }
+    } finally {
+      _setContractorLoading(result, false);
+    }
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setResultLoading(ResultResident result, bool isLoading) {
+    final index = _addressesResident.indexWhere((r) => r.id == result.id);
+    if (index != -1) {
+      _addressesResident[index] =
+          _addressesResident[index].copyWith(isLoading: isLoading);
+      notifyListeners();
+    }
+  }
+
+  void _setContractorLoading(PermanentContractorResult result, bool isLoading) {
+    final index = _addressesPermContractor.indexWhere((r) => r.id == result.id);
+    if (index != -1) {
+      _addressesPermContractor[index] =
+          _addressesPermContractor[index].copyWith(isLoading: isLoading);
+      notifyListeners();
+    }
+  }
+
+  void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message,
+            style: TextStyle(color: FlutterFlowTheme.of(context).primaryText)),
+        duration: const Duration(milliseconds: 4000),
+        backgroundColor: FlutterFlowTheme.of(context).secondary,
+      ),
+    );
+  }
+}
